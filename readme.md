@@ -40,7 +40,7 @@ Fylance is a lightweight, serverless SPA that gives you a full CRM and project m
 **Projects**
 - Kanban board with drag & drop cards
 - Customizable columns and filters
-- Project detail view — full info, comments, and to-do list
+- Project detail view — full info, comments (with edit/delete), and to-do list
 
 **Invoices**
 - Create and manage professional invoices
@@ -57,9 +57,15 @@ Fylance is a lightweight, serverless SPA that gives you a full CRM and project m
 - Filter by date, client, or project
 - Export as CSV
 
-**Teams**
+**Teams & Admin**
 - Invite team members to your workspace
 - Role-based access — Owner and Member
+- Admin Panel — Manage users, verify accounts, and promote to admin
+- Account Verification — Secure access via admin-approved verification
+
+**Navigation**
+- Hash-based routing (e.g., `#clients`, `#projects`) for direct access to modules
+
 
 ---
 
@@ -95,18 +101,36 @@ In Firebase Console → Firestore → Rules, replace the default rules with:
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /workspaces/{workspaceId} {
-      allow read, write: if request.auth != null
-        && request.auth.uid == workspaceId;
+    
+    function isAdmin() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/workspaces/$(request.auth.uid)).data.is_admin == true;
     }
+
+    function isVerified() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/workspaces/$(request.auth.uid)).data.is_verified == true;
+    }
+
+    match /workspaces/{workspaceId} {
+      allow read, write: if isVerified() && (request.auth.uid == workspaceId || isAdmin());
+    }
+
     match /workspaces/{workspaceId}/{document=**} {
-      allow read, write: if request.auth != null
-        && (request.auth.uid == workspaceId
-        || exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)));
+      allow read, write: if isVerified() && (request.auth.uid == workspaceId
+        || exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid))
+        || isAdmin());
     }
   }
 }
 ```
+
+**Note on Initial Setup:**
+Since access is restricted to verified users, the first user (Admin) must be manually verified in the Firebase Console:
+1. Go to Firestore → `workspaces` collection.
+2. Find your user document (ID = your UID).
+3. Add/Set fields: `is_verified: true` and `is_admin: true`.
+
 
 ### 4. Run the app
 
@@ -122,7 +146,29 @@ Serve the `/SPA` folder using any local server (e.g. Live Server in VS Code).
 **Static hosting**
 Upload the contents of the `/SPA` folder to any static host (shared hosting, Netlify, Vercel, etc.). No server-side configuration needed.
 
+### Database Schema
+
+The application uses a hierarchical Firestore structure:
+
+- **`workspaces` (collection)**: Root collection where each document ID is the user's `uid`.
+  - Fields: `name`, `username`, `ownerId`, `is_admin`, `is_verified`, `createdAt`
+  - **`members` (sub-collection)**: Workspace collaborators.
+    - Fields: `uid`, `name`, `email`, `photo`, `role`, `joinedAt`
+  - **`clients` (sub-collection)**: Client directory.
+    - Fields: `name`, `company`, `email`, `phone`, `notes`, `createdAt`
+  - **`projects` (sub-collection)**: Project management.
+    - Fields: `title`, `clientId`, `clientName`, `type`, `status`, `deadline`, `description`, `createdAt`
+    - **`comments` (sub-collection)**: Project discussion.
+      - Fields: `body`, `authorName`, `authorPhoto`, `createdAt`
+    - **`todos` (sub-collection)**: Project tasks.
+      - Fields: `text`, `done`, `createdAt`
+  - **`invoices` (sub-collection)**: Billing records.
+    - Fields: `number`, `status`, `clientId`, `clientName`, `projectId`, `projectTitle`, `dueDate`, `tax`, `discount`, `subtotal`, `total`, `items` (array), `notes`, `createdAt`
+  - **`transactions` (sub-collection)**: Cash flow tracking.
+    - Fields: `type`, `amount`, `date`, `method`, `clientId`, `clientName`, `projectId`, `projectTitle`, `notes`, `createdAt`
+
 ---
+
 
 ## Who is it for?
 

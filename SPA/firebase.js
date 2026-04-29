@@ -16,10 +16,10 @@ import {
 // ── 1. CONFIG (replace with your Firebase project) ────────────
 const firebaseConfig = {
   apiKey: "xxxxxx",
-  authDomain: "xxxxx.firebaseapp.com",
-  projectId: "xxxx",
-  storageBucket: "xxxxxxxxxxx",
-  messagingSenderId: "xxxxxxxxx",
+  authDomain: "xxxxxxxx.com",
+  projectId: "xxxxxxxxxxx",
+  storageBucket: "xxxxxxxxxxxx.app",
+  messagingSenderId: "xxxxxxxxxx",
   appId: "1:xxxxxxxxxxxx",
   measurementId: "G-xxxxxxxxx"
 };
@@ -39,6 +39,7 @@ window._state = {
 // ── 3. AUTH HELPERS ───────────────────────────────────────────
 async function signIn() {
   try {
+    document.getElementById("auth-error").style.display = "none";
     const provider = new GoogleAuthProvider();
     await signInWithPopup(auth, provider);
   } catch (e) { console.error(e); }
@@ -46,6 +47,24 @@ async function signIn() {
 
 async function signOutUser() {
   await signOut(auth);
+}
+
+async function isUserVerified(uid) {
+  const wsRef = doc(db, "workspaces", uid);
+  const snap = await getDoc(wsRef);
+  if (!snap.exists()) return false;
+  
+  const data = snap.data();
+  if (data.is_verified === undefined || data.is_verified === false) {
+    return false;
+  }
+  return data.is_verified === true;
+}
+
+async function isAdmin(uid) {
+  const wsRef = doc(db, "workspaces", uid);
+  const snap = await getDoc(wsRef);
+  return snap.exists() && snap.data().is_admin === true;
 }
 
 // ── 4. WORKSPACE BOOTSTRAP ────────────────────────────────────
@@ -78,39 +97,104 @@ async function ensureWorkspace(user) {
 
 // ── 5. AUTH STATE LISTENER (wires everything together) ─────────
 onAuthStateChanged(auth, async (user) => {
-  document.getElementById("loading-spinner").style.display = "none";
-
+  // Keep spinner until verification is complete
   if (!user) {
-    // Not signed in
+    document.getElementById("loading-spinner").style.display = "none";
     window._state.user = null;
     window._state.workspaceId = null;
     window._state.workspace = null;
     document.getElementById("auth-screen").style.display = "flex";
     document.getElementById("app-shell").classList.remove("active");
     document.getElementById("fab").style.display = "none";
+    // REMOVED: document.getElementById("auth-error").style.display = "none";
     return;
   }
 
-  // Signed in — bootstrap workspace
+  // Check verification strictly
+  const verified = await isUserVerified(user.uid);
+  
+  if (!verified) {
+    // STRICT BLOCK: Clear state and sign out immediately
+    window._state.user = null;
+    window._state.workspaceId = null;
+    window._state.workspace = null;
+    
+    await signOut(auth);
+    
+    document.getElementById("loading-spinner").style.display = "none";
+    document.getElementById("auth-screen").style.display = "flex";
+    document.getElementById("app-shell").classList.remove("active");
+    document.getElementById("fab").style.display = "none";
+    
+    const errorEl = document.getElementById("auth-error");
+    errorEl.textContent = "YOUR ACCOUNT HAD NOT BEEN VERIFIED, Admin needs to verify";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  // Verified — bootstrap workspace
   const ws = await ensureWorkspace(user);
   window._state.user        = user;
-  window._state.workspaceId = user.uid;   // simple 1:1 for now
+  window._state.workspaceId = user.uid;
   window._state.workspace   = ws;
 
-  // Update sidebar UI
+  document.getElementById("loading-spinner").style.display = "none";
   document.getElementById("auth-screen").style.display = "none";
   document.getElementById("app-shell").classList.add("active");
   document.getElementById("fab").style.display = "flex";
+  document.getElementById("auth-error").style.display = "none";
   document.getElementById("ws-name-display").textContent = ws.name || "My Workspace";
   document.getElementById("user-name-display").textContent = user.displayName || user.email;
   const avatarImg = document.getElementById("user-avatar-img");
   if (user.photoURL) avatarImg.src = user.photoURL;
 
-  // Navigate to dashboard
-  window.APP.navigate("dashboard");
+  // Admin Badge & Nav
+  const isAdminUser = ws.is_admin === true;
+  const adminBadge = document.getElementById("admin-badge");
+  if (adminBadge) {
+    adminBadge.style.display = isAdminUser ? "block" : "none";
+  }
+  const navUsers = document.getElementById("nav-users");
+  if (navUsers) {
+    navUsers.style.display = isAdminUser ? "flex" : "none";
+  }
+
+  // Navigate to dashboard or hash page
+  const initialPage = window.location.hash.slice(1);
+  window.APP.navigate(initialPage || "dashboard");
 });
 
+async function getUserDoc(uid) {
+  const ref = doc(db, "workspaces", uid);
+  const snap = await getDoc(ref);
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+async function updateUserDoc(uid, data) {
+  const ref = doc(db, "workspaces", uid);
+  await updateDoc(ref, { ...data, updatedAt: serverTimestamp() });
+}
+
 // ── 6. FIRESTORE CRUD HELPERS ─────────────────────────────────
+async function getAllUsers() {
+  const q = query(collection(db, "workspaces"), orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function getWorkspaceStats(workspaceId) {
+  const cols = ["projects", "members", "invoices", "transactions"];
+  const stats = {};
+  
+  await Promise.all(cols.map(async col => {
+    const ref = collection(db, "workspaces", workspaceId, col);
+    const snap = await getDocs(ref);
+    stats[col] = snap.size;
+  }));
+  
+  return stats;
+}
+
 function wsCol(col) {
   return collection(db, "workspaces", window._state.workspaceId, col);
 }
@@ -164,11 +248,23 @@ async function addComment(projectId, body) {
   const ref = collection(db, "workspaces", window._state.workspaceId, "projects", projectId, "comments");
   await addDoc(ref, {
     body,
+    uid: u.uid,
     authorName: u.displayName || u.email,
     authorPhoto: u.photoURL || "",
     createdAt: serverTimestamp(),
   });
 }
+
+async function updateComment(projectId, commentId, body) {
+  const ref = doc(db, "workspaces", window._state.workspaceId, "projects", projectId, "comments", commentId);
+  await updateDoc(ref, { body, updatedAt: serverTimestamp() });
+}
+
+async function deleteComment(projectId, commentId) {
+  const ref = doc(db, "workspaces", window._state.workspaceId, "projects", projectId, "comments", commentId);
+  await deleteDoc(ref);
+}
+
 
 // Convenience: auto-generate invoice number
 async function nextInvoiceNumber() {
@@ -182,12 +278,19 @@ window.FB = {
   signOut: signOutUser,
   getAll,
   getOne,
+  getUserDoc,
+  updateUserDoc,
   addItem,
   updateItem,
   deleteItem,
   getComments,
   addComment,
+  updateComment,
+  deleteComment,
   nextInvoiceNumber,
+  isAdmin,
+  getAllUsers,
+  getWorkspaceStats,
   // expose timestamp helper
   ts: serverTimestamp,
 };

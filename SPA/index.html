@@ -21,21 +21,23 @@
     <div class="auth-logo">✦ Freelance Manager</div>
     <h1 class="auth-title">Your work, organized.</h1>
     <p class="auth-sub">Clients, projects, invoices and transactions — all in one place. No backend. No subscriptions.</p>
-    <button class="btn-google" onclick="FB.signIn()">
-      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#000" d="M12 11v2.4h6.6c-.3 1.7-1.9 5-6.6 5-4 0-7.2-3.3-7.2-7.4S8 4.2 12 4.2c2.3 0 3.8.98 4.7 1.82l3.2-3.1C17.9 1.1 15.2 0 12 0 5.4 0 0 5.4 0 12s5.4 12 12 12c6.9 0 11.5-4.8 11.5-11.6 0-.8-.1-1.4-.2-2h-11.3z"/></svg>
-      Continue with Google
-    </button>
-  </div>
-</div>
+     <button class="btn-google" onclick="FB.signIn()">
+       <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#000" d="M12 11v2.4h6.6c-.3 1.7-1.9 5-6.6 5-4 0-7.2-3.3-7.2-7.4S8 4.2 12 4.2c2.3 0 3.8.98 4.7 1.82l3.2-3.1C17.9 1.1 15.2 0 12 0 5.4 0 0 5.4 0 12s5.4 12 12 12c6.9 0 11.5-4.8 11.5-11.6 0-.8-.1-1.4-.2-2h-11.3z"/></svg>
+       Continue with Google
+     </button>
+     <p id="auth-error" style="color:var(--red); text-align:center; margin-top:20px; font-size:14px; font-weight:500; display:none;"></p>
+   </div>
+ </div>
 
 <!-- App Shell -->
 <div id="app-shell">
   <!-- Sidebar -->
   <aside id="sidebar">
-    <div class="sidebar-brand">
-      <div class="logo-tag">✦ Workspace</div>
-      <div class="ws-name" id="ws-name-display">Loading…</div>
-    </div>
+     <div class="sidebar-brand">
+       <div class="logo-tag">✦ Workspace</div>
+       <div class="ws-name" id="ws-name-display">Loading…</div>
+       <div id="admin-badge" style="display:none; font-size:10px; font-weight:800; color:var(--accent); background:rgba(var(--accent-rgb), 0.1); padding:2px 6px; border-radius:4px; width:fit-content; margin-top:4px; letter-spacing:0.5px;">ADMIN</div>
+     </div>
     <nav class="sidebar-nav">
       <div class="nav-section-label">Workspace</div>
       <div class="nav-item" data-page="dashboard">
@@ -44,10 +46,13 @@
       <div class="nav-item" data-page="clients">
         <span class="nav-icon">👤</span> Clients
       </div>
-      <div class="nav-item" data-page="projects">
-        <span class="nav-icon">📁</span> Projects
-      </div>
-      <div class="nav-section-label">Finance</div>
+       <div class="nav-item" data-page="projects">
+         <span class="nav-icon">📁</span> Projects
+       </div>
+       <div class="nav-item" data-page="users" id="nav-users" style="display:none">
+         <span class="nav-icon">👥</span> Users
+       </div>
+       <div class="nav-section-label">Finance</div>
       <div class="nav-item" data-page="invoices">
         <span class="nav-icon">🧾</span> Invoices
       </div>
