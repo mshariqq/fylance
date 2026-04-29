@@ -15,14 +15,15 @@ import {
 
 // ── 1. CONFIG (replace with your Firebase project) ────────────
 const firebaseConfig = {
-  apiKey: "XXXXXXX-XXXXXX",
-  authDomain: "xxxxxxxxxx",
-  projectId: "xxxxxx",
-  storageBucket: "xxxxxxx",
-  messagingSenderId: "xxxxxxxx",
-  appId: "1:xxxxxxxxx",
-  measurementId: "G-xxxxxxx"
+  apiKey: "xxxxxx",
+  authDomain: "xxxxx.firebaseapp.com",
+  projectId: "xxxx",
+  storageBucket: "xxxxxxxxxxx",
+  messagingSenderId: "xxxxxxxxx",
+  appId: "1:xxxxxxxxxxxx",
+  measurementId: "G-xxxxxxxxx"
 };
+
 
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);

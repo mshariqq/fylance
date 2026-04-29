@@ -59,6 +59,7 @@ function openPane(title, bodyHTML) {
 function closePane() {
   document.getElementById("right-pane").classList.remove("open");
   document.getElementById("right-pane-overlay").classList.remove("open");
+  window.commentEditor = null;
 }
 
 // ── FAB ───────────────────────────────────────────────────────
@@ -94,29 +95,70 @@ function quickAdd(type) {
 }
 
 // ── PAGE: DASHBOARD (KANBAN) ───────────────────────────────────
-async function renderDashboard() {
-  const projects = await FB.getAll("projects", "createdAt");
-  const columns = ["Lead", "In Progress", "Review", "Done"];
-  const byStatus = {};
-  columns.forEach(c => byStatus[c] = []);
-  projects.forEach(p => {
-    if (byStatus[p.status] !== undefined) byStatus[p.status].push(p);
-    else byStatus["Lead"].push(p);
-  });
+// async function renderDashboard() {
+//   const projects = await FB.getAll("projects", "createdAt");
+//   const columns = ["Lead", "In Progress", "Review", "Done"];
+//   const byStatus = {};
+//   columns.forEach(c => byStatus[c] = []);
+//   projects.forEach(p => {
+//     if (byStatus[p.status] !== undefined) byStatus[p.status].push(p);
+//     else byStatus["Lead"].push(p);
+//   });
 
-  let html = `<div class="kanban-board">`;
-  for (const col of columns) {
-    const cards = byStatus[col];
-    const colorMap = { "Lead": "#6b7585", "In Progress": "#5b9cf6", "Review": "#f0c040", "Done": "#3ddc84" };
-    html += `
-      <div class="kanban-col">
-        <div class="kanban-col-header">
-          <span style="color:${colorMap[col]}">${col}</span>
-          <span class="col-count">${cards.length}</span>
-        </div>
-        <div class="kanban-cards">
-          ${cards.map(p => `
-            <div class="kanban-card" onclick="APP.openProjectPane('${p.id}')">
+//   let html = `<div class="kanban-board">`;
+//   for (const col of columns) {
+//     const cards = byStatus[col];
+//     const colorMap = { "Lead": "#6b7585", "In Progress": "#5b9cf6", "Review": "#f0c040", "Done": "#3ddc84" };
+//     html += `
+//       <div class="kanban-col">
+//         <div class="kanban-col-header">
+//           <span style="color:${colorMap[col]}">${col}</span>
+//           <span class="col-count">${cards.length}</span>
+//         </div>
+//         <div class="kanban-cards">
+//           ${cards.map(p => `
+//             <div class="kanban-card" onclick="APP.openProjectPane('${p.id}')">
+//               <div class="card-title">${p.title || "Untitled"}</div>
+//               <div class="card-client">${p.clientName || "No client"}</div>
+//               <div class="card-meta">
+//                 ${badge(p.type || "Other")}
+//                 <span class="card-deadline">${p.deadline ? p.deadline : ""}</span>
+//               </div>
+//             </div>
+//           `).join("")}
+//         </div>
+//         <button class="add-card-btn" onclick="APP.showAddProject('${col}')">+ Add project</button>
+//       </div>`;
+//   }
+//   html += `</div>`;
+//   return html;
+// }
+
+// ── PAGE: DASHBOARD (KANBAN) ───────────────────────────────────
+async function renderDashboard() {
+    const projects = await FB.getAll("projects", "createdAt");
+    const columns = ["Lead", "In Progress", "Review", "Done"];
+    const byStatus = {};
+    columns.forEach(c => byStatus[c] = []);
+    projects.forEach(p => {
+        if (byStatus[p.status] !== undefined) byStatus[p.status].push(p);
+        else byStatus["Lead"].push(p);
+    });
+
+
+    let html = `<div class="kanban-board">`;
+    for (const col of columns) {
+        const cards = byStatus[col];
+        const colorMap = { "Lead": "#6b7585", "In Progress": "#5b9cf6", "Review": "#f0c040", "Done": "#3ddc84" };
+        html += `
+            <div class="kanban-col">
+                <div class="kanban-col-header">
+                    <span style="color:${colorMap[col]}">${col}</span>
+                    <span class="col-count">${cards.length}</span>
+                </div>
+                <div class="kanban-cards" data-status="${col}"> 
+${cards.map(p => `
+            <div class="kanban-card" data-project-id="${p.id}" data-current-status="${p.status}" onclick="APP.openProjectPane('${p.id}')">
               <div class="card-title">${p.title || "Untitled"}</div>
               <div class="card-client">${p.clientName || "No client"}</div>
               <div class="card-meta">
@@ -128,10 +170,13 @@ async function renderDashboard() {
         </div>
         <button class="add-card-btn" onclick="APP.showAddProject('${col}')">+ Add project</button>
       </div>`;
-  }
-  html += `</div>`;
-  return html;
+    }
+    html += `</div>`;
+    return html;
 }
+
+
+// ── PAGE: CLIENTS ─────────────────────────────────────────────
 
 // ── PAGE: CLIENTS ─────────────────────────────────────────────
 async function renderClients() {
@@ -464,18 +509,20 @@ async function renderProjectPane(id) {
       ${comments.length ? comments.map(c => `
         <div class="comment">
           <div class="comment-meta">${c.authorName} · ${fmtDate(c.createdAt)}</div>
-          <div class="comment-body">${c.body}</div>
+          <div class="comment-body">${c.body || ''}</div>
         </div>`).join("")
         : `<p style="color:var(--muted);font-size:12px;font-style:italic">No comments yet.</p>`}
     </div>
     <div class="comment-input-wrap" style="margin-top:auto;padding-top:10px">
-      <textarea id="comment-input" placeholder="Add a comment…"></textarea>
+      <div id="comment-input"></div>
       <button class="btn btn-primary btn-sm" onclick="APP.addComment('${id}')">Post</button>
     </div>`;
 
   openPane(p.title || "Project", `
     <div class="pane-left">${leftHTML}</div>
     <div class="pane-right">${rightHTML}</div>`);
+  
+  setTimeout(initCommentEditor, 0);
 }
 
 // ── CLIENT PANE ───────────────────────────────────────────────
@@ -562,24 +609,41 @@ async function renderInvoiceDetail(id) {
     </div>`;
 }
 
-// ── EXPORT ────────────────────────────────────────────────────
+function initCommentEditor() {
+  const container = document.getElementById("comment-input");
+  if (!container || window.commentEditor) return;
+  
+  window.commentEditor = new Quill('#comment-input', {
+    theme: 'snow',
+    placeholder: 'Add a comment...',
+    modules: {
+      toolbar: [
+        ['bold', 'italic', 'underline'],
+        ['link', 'blockquote', 'code-block'],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        ['clean']
+      ]
+    }
+  });
+}
 window.UI = {
-  toast,
-  openModal, closeModal,
-  openPane, closePane,
-  toggleFab, closeFab, quickAdd,
-  filterTable,
-  renderDashboard,
-  renderClients,
-  renderProjects,
-  renderInvoices,
-  renderTransactions,
-  renderReports,
-  renderSettings,
-  renderProjectPane,
-  renderClientPane,
-  renderInvoiceDetail,
-  // called by nav re-renders
-  reloadPage: () => window.APP && window.APP.reloadPage(),
-  fmt, fmtDate, badge, today,
+    toast,
+    openModal, closeModal,
+    openPane, closePane,
+    toggleFab, closeFab, quickAdd,
+    filterTable,
+    renderDashboard,
+    renderClients,
+    renderProjects,
+    renderInvoices,
+    renderTransactions,
+    renderReports,
+    renderSettings,
+    renderProjectPane,
+    renderClientPane,
+    renderInvoiceDetail,
+    // called by nav re-renders
+    reloadPage: () => window.APP && window.APP.reloadPage(),
+    fmt, fmtDate, badge, today,
+    initCommentEditor,
 };

@@ -240,15 +240,15 @@ async function openClientPane(id) {
 
 // ── COMMENTS ─────────────────────────────────────────────────
 async function addComment(projectId) {
-  const body = document.getElementById("comment-input").value.trim();
-  if (!body) return;
+  const body = window.commentEditor ? window.commentEditor.root.innerHTML.trim() : "";
+  if (!body || body === "<p><br></p>") return;
   await FB.addComment(projectId, body);
-  document.getElementById("comment-input").value = "";
+  if (window.commentEditor) window.commentEditor.setContents([]);
   const comments = await FB.getComments(projectId);
   document.getElementById("comment-list").innerHTML = comments.map(c => `
     <div class="comment">
       <div class="comment-meta">${c.authorName} · ${UI.fmtDate(c.createdAt)}</div>
-      <div class="comment-body">${c.body}</div>
+      <div class="comment-body">${c.body || ''}</div>
     </div>`).join("");
 }
 
@@ -588,6 +588,8 @@ async function inviteMember() {
   UI.toast(`Invite link sent to ${email} (implement email invite flow in Firebase)`);
 }
 
+
+
 // ── EXPORT as window.APP ──────────────────────────────────────
 window.APP = {
   navigate, reloadPage,
@@ -606,4 +608,5 @@ window.APP = {
   showAddTransaction, showEditTransaction, saveTransaction, deleteTransaction,
   // Settings
   saveWorkspace, saveProfile, inviteMember,
+  
 };
