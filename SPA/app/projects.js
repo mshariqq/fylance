@@ -135,19 +135,20 @@ async function refreshComments(projectId) {
   const user = window._state.user;
   const isAdmin = await FB.isAdmin(user.uid);
   
-  const html = comments.map(c => `
+    const html = comments.map(c => `
     <div class="comment">
       <div class="comment-meta">
         ${c.authorName} · ${UI.fmtDate(c.createdAt)}
         ${(c.uid === user.uid || isAdmin) ? `
           <span style="margin-left:10px">
-            <button class="btn btn-ghost btn-sm" style="padding:0 4px;font-size:10px" onclick="APP.editComment('${projectId}','${c.id}','${c.body.replace(/'/g, "\\'")}')">Edit</button>
-            <button class="btn btn-danger btn-sm" style="padding:0 4px;font-size:10px" onclick="APP.deleteComment('${projectId}','${c.id}')">Del</button>
+            <button class="btn btn-ghost btn-sm" style="padding:0 4px;font-size:10px" onclick="APP.editComment('${projectId}','${c.id}','${c.body.replace(/'/g, "\\'")}')"><i class="bi bi-pencil-square"></i></button>
+            <button class="btn btn-danger btn-sm" style="padding:0 4px;font-size:10px" onclick="APP.deleteComment('${projectId}','${c.id}')"><i class="bi bi-trash"></i></button>
           </span>
         ` : ''}
       </div>
       <div class="comment-body">${c.body || ''}</div>
     </div>`).join("");
+
   document.getElementById("comment-list").innerHTML = html;
 }
 

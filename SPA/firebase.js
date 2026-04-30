@@ -14,15 +14,16 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── 1. CONFIG (replace with your Firebase project) ────────────
-const firebaseConfig = {
-  apiKey: "xxxxxx",
-  authDomain: "xxxxxxxx.com",
-  projectId: "xxxxxxxxxxx",
-  storageBucket: "xxxxxxxxxxxx.app",
-  messagingSenderId: "xxxxxxxxxx",
-  appId: "1:xxxxxxxxxxxx",
-  measurementId: "G-xxxxxxxxx"
-};
+// const firebaseConfig = {
+//   apiKey: "xxxxxx",
+//   authDomain: "xxxxxxxx.com",
+//   projectId: "xxxxxxxxxxx",
+//   storageBucket: "xxxxxxxxxxxx.app",
+//   messagingSenderId: "xxxxxxxxxx",
+//   appId: "1:xxxxxxxxxxxx",
+//   measurementId: "G-xxxxxxxxx"
+// };
+
 
 
 const app  = initializeApp(firebaseConfig);

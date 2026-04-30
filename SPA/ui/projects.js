@@ -115,7 +115,7 @@ export async function renderProjectPane(id) {
     <div class="pane-right">${rightHTML}</div>`);
   
   setTimeout(() => {
-    initCommentEditor();
+    UI.initCommentEditor();
     APP.refreshComments(id);
   }, 0);
 }
